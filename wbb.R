@@ -4,6 +4,7 @@ library(cricketdata)
 library(tidyverse)
 library(gt)
 library(gtExtras)
+library(hrbrthemes)
 
 ##XG Boosted Model - balls_remaining = numeric, runs_scored_yet = int, wickest_lost_yet = int, run_chase = numeric
 
@@ -136,6 +137,8 @@ wpa_both <- wpa_bat_only %>%
   mutate_if(is.numeric, round, 2)%>%
   left_join(logos_and_colours, by = c('team' = 'team'), na_matches = "never")
 
+write.csv(wpa_both, "wbb/WBB08_WPA.csv")
+
 
 
 # GT tables ---------------------------------------------------------------
@@ -181,4 +184,37 @@ wpa_both %>%
   gt_hulk_col_numeric(total_wpa_per_ball:total_bowl_wpa) %>%
   tab_options(footnotes.font.size = 12)%>%
   gtsave("wbb/WBB_Top15_WPA.png")
+
+
+# Win Probability Plots ---------------------------------------------------
+
+test_bbl_ggplot <- wbb_bbb_2022_all %>%
+  mutate(wp = if_else(innings== 2, 1-wp, wp),
+         delivery_no = if_else(innings == 2, delivery_no+120, delivery_no),
+         wp = wp*100) %>%
+  filter(match_id == '1341268') %>%
+  arrange(delivery_no) 
+
+ggplot(test_bbl_ggplot) +
+  geom_hline(yintercept = 50, alpha = 0.5, colour = "red", linetype = "dotted") +
+  geom_vline(xintercept = 60, alpha = 0.5, colour = "red", linetype = "dotted")+
+  geom_line(mapping = aes(x = delivery_no, y = wp), size = 1, colour = 'navy')+
+  geom_label(test_bbl_ggplot %>% filter(wicket == 1), mapping = aes(x = delivery_no, y = wp), size = 4, label = "Wicket", alpha = 0.7) +
+  annotate("text", x = 30, y = 90, label = "Adelaide Strikers Win", colour = '#3399FF', fontface = 'bold') +
+  annotate("text", x = 30, y = 30, label = "Sydney Sixers Win", colour = '#FF00FF', fontface = 'bold') +
+  theme_ipsum_rc() +
+  labs(title = "Win Probability Worm - WBBL|08 Grand Final",
+       x = "Delivery Number",
+       y = "Win Probability Percentage",
+       caption = "Chart: @TAlbTree  Data: sawlachintan/cricket_data\nMinimum 75") +
+  theme(plot.title = element_text(size = 12),
+        axis.text = element_text(size = 10),
+        plot.subtitle = element_text(size = 10),
+        plot.caption = element_text(size = 10),
+        legend.position = "",
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  scale_y_continuous(breaks = seq(from = 0, to = 100, by = 50)) +
+  ylim(0,100)
+ggsave("wbb/WinProbWorm_WBBL08_GrandFinal.png", bg = "#ffffff")
 
